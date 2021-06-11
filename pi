@@ -1,0 +1,109 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include "timer.h"
+
+long amount_of_thread;
+long long m;
+double total;
+sem_t sem;
+
+void* Thread_total(void* rank);
+
+void Get_args(int argc, char* argv[]);
+void Use(char* c_name);
+double serial_pi(long long m);
+
+int main(int argc, char* argv[]) {
+   long thread;  
+   pthread_t* thread_branches;
+   double start, finish;
+
+  Get_args(argc, argv);
+
+ thread_branches= (pthread_t*) malloc (amount_of_thread*sizeof(pthread_t)); 
+
+sem_init(&sem, 0, 1);
+
+GET_TIME(start);
+   sum = 0.0;
+   for (thread = 0; thread < amount_of_thread; thread++)  
+      pthread_create(& thread_branches[thread], NULL,
+          Thread_total, (void*)thread);  
+
+for (thread = 0; thread < amount_of_thread; thread++) 
+      pthread_join(thread_branches[thread], NULL); 
+   total = 4.0*total;
+   GET_TIME(finish);
+
+   printf("With m = %lld terms,\n", m);
+   printf("   Our estimate of pi = %.15f\n", total);
+   printf("The elapsed time is %e seconds\n", finish - start);
+   GET_TIME(start);
+   total = Serial_pi(m);
+   GET_TIME(finish);
+   printf("   Single thread est  = %.15f\n", total);
+   printf("The elapsed time is %e seconds\n", finish - start);
+   printf("                   pi = %.15f\n", 4.0*atan(1.0));
+   
+   sem_destroy(&sem);
+   free(thread_branches);
+   return 0;
+}  
+
+double Serial_pi(long long m) {
+   double total= 0.0;
+   long long i;
+   double fact = 1.0;
+
+   for (i = 0; i < m; i++, fact = -fact) {
+      total += fact/(2*i+1);
+   }
+   return 4.0*total;
+}  
+
+void* Thread_total(void* rank) {
+   long rank2= (long) rank;
+   double fact;
+   long long i;
+   long long m2 = m/amount_of_thread;
+   long long i1 = m2*rank2;
+   long long i2 = i1 + m2;
+   double sum = 0.0;
+
+ if (i1 % 2 == 0)
+      fact = 1.0;
+   else
+      fact = -1.0;
+
+   for (i = i1; i < i2; i++, fact = -fact) {
+      sum += fact/(2*i+1);
+   }
+
+ sem_wait(&sem);
+#  ifdef VERBOSE
+   printf("Thread %ld > Obtained semaphore\n", rank2);
+   fflush(stdout);
+#  endif
+   total += sum;
+   sem_post(&sem);
+
+   return NULL;
+} 
+
+void Usage(char* c_name) {
+   fprintf(stderr, "usage: %s <number of threads> <n>\n", c_name);
+   fprintf(stderr, "   m is the number of terms and should be >= 1\n");
+   fprintf(stderr, "   m should be evenly divisible by the number of threads\n");
+   exit(0);
+} 
+
+void Get_args(int argc, char* argv[]) {
+   if (argc != 3) Usage(argv[0]);
+   amount_of_thread = strtol(argv[1], NULL, 10);  
+   if (amount_of_thread <= 0) Usage(argv[0]);
+   m = strtoll(argv[2], NULL, 10);
+   if (n <= 0) Usage(argv[0]);
+}  
